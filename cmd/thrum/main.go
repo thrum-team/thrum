@@ -7468,22 +7468,12 @@ func runDaemon(repoPath string, flagLocal bool, flagForce bool) error {
 				// Refresh local entry with the listener's current metadata.
 				// If the listener's daemon_id rotated, the entry's key
 				// changes too: RemovePeer the old key first so both sides
-				// settle on the same DaemonID.
-				refreshed := *existing
-				oldKey := refreshed.DaemonID
-				refreshed.DaemonID = result.DaemonID
-				if result.RepoName != "" {
-					refreshed.RemoteRepoName = result.RepoName
-				}
-				if result.Hostname != "" {
-					refreshed.RemoteHostname = result.Hostname
-				}
-				if result.RepoPath != "" {
-					refreshed.RemoteRepoPath = result.RepoPath
-				}
-				if result.GitOriginURL != "" {
-					refreshed.RemoteGitOriginURL = result.GitOriginURL
-				}
+				// settle on the same DaemonID. thrum-vxunm: the merge (incl.
+				// clearing any latched drift_reconcile_failed flag — see
+				// daemon.ApplyRepairResult's doc comment) lives in a pure,
+				// unit-tested helper so a successful repair reliably clears
+				// the marker the command itself is meant to fix.
+				refreshed, oldKey := daemon.ApplyRepairResult(existing, result)
 				if oldKey != result.DaemonID && oldKey != "" {
 					if rmErr := peerRegistry.RemovePeer(oldKey); rmErr != nil {
 						fmt.Fprintf(os.Stderr, "[peer.join] warning: failed to remove stale peer entry %s: %v\n", oldKey, rmErr)
