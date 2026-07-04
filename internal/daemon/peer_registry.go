@@ -306,6 +306,40 @@ func (r *PeerRegistry) SetReconcileStatus(daemonID, status string) error {
 	return r.saveLocked()
 }
 
+// ApplyRepairResult computes the refreshed PeerInfo for an existing peer
+// entry after a successful manual `thrum peer join --type repair` (dialer
+// side, cmd/thrum's joinFn "repair" case). Pure field merge — no registry
+// I/O — so callers remain responsible for RemovePeer (if the returned
+// oldDaemonID differs from result.DaemonID) and AddPeer.
+//
+// thrum-vxunm: unconditionally clears ReconcileStatus. A successful repair
+// means the peer reconciled and is healthy again, so any latched
+// "drift_reconcile_failed" marker must clear here — the xir.29 auto-
+// reconcile only clears it on its own success path (ReconcileOne), and the
+// manual repair path historically copied the stale status through,
+// leaving `thrum peer list` showing the "drift detected — run: thrum peer
+// join --type repair" hint even after the very command it points to
+// succeeded.
+func ApplyRepairResult(existing *PeerInfo, result *RepairResult) (refreshed PeerInfo, oldDaemonID string) {
+	refreshed = *existing
+	refreshed.ReconcileStatus = "" // == reconcile.StatusHealthy
+	oldDaemonID = refreshed.DaemonID
+	refreshed.DaemonID = result.DaemonID
+	if result.RepoName != "" {
+		refreshed.RemoteRepoName = result.RepoName
+	}
+	if result.Hostname != "" {
+		refreshed.RemoteHostname = result.Hostname
+	}
+	if result.RepoPath != "" {
+		refreshed.RemoteRepoPath = result.RepoPath
+	}
+	if result.GitOriginURL != "" {
+		refreshed.RemoteGitOriginURL = result.GitOriginURL
+	}
+	return refreshed, oldDaemonID
+}
+
 // UpdateLastSync updates the last sync timestamp for a peer.
 func (r *PeerRegistry) UpdateLastSync(daemonID string) error {
 	r.mu.Lock()
