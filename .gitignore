@@ -111,3 +111,6 @@ scripts/thrum-startup.sh
 # in thrum-z2et.20.1). Some tooling may recreate the directory; ignore it so
 # the no-frontmatter copies don't surface as untracked drift.
 toolkit/templates/roles/
+
+# bd (beads) gate lock file
+.beads.gate.lock
